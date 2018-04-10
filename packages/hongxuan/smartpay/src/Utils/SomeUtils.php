@@ -151,7 +151,7 @@ class SomeUtils
      * @return string
      * @throws \Exception
      */
-    public static function createLinkstring($para)
+    public static function createLinkString($para)
     {
         if (! is_array($para)) {
             throw new \Exception('必须传入数组参数');
@@ -199,8 +199,10 @@ class SomeUtils
             $beginStr = '-----BEGIN PUBLIC KEY-----';
             $endStr = '-----END PUBLIC KEY-----';
         }
-        $keyStr = chunk_split(base64_encode($keyStr), 64, "\n");
-        $rsaKey = $beginStr . PHP_EOL . $keyStr . PHP_EOL . $endStr;
+        $keyStr = str_replace($beginStr, '', $keyStr);
+        $keyStr = str_replace($endStr, '', $keyStr);
+        $rsaKey = chunk_split($keyStr, 64, PHP_EOL);
+        $rsaKey = $beginStr . PHP_EOL . $rsaKey . $endStr;
         return $rsaKey;
     }
 }

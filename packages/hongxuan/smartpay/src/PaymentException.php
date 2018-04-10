@@ -12,4 +12,13 @@ namespace Hongxuan\Smartpay;
 class PaymentException extends \Exception
 {
 
+    /**
+     * 获取错误信息
+     * @return string
+     */
+    public function errorMsg()
+    {
+        return $this->getMessage();
+    }
+
 }
