@@ -16,6 +16,8 @@ class IndexController extends Controller
 {
     public function index()
     {
+
+        // 支付宝网页扫码支付
         $result = Payment::driver('alipay')
             ->setPayType('ali_web')
             ->setOrder([

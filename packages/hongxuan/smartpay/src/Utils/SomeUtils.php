@@ -127,7 +127,6 @@ class SomeUtils
      * 移除空值的key
      * @param $para
      * @return array
-     * @author helei
      */
     public static function paraFilter($para)
     {
