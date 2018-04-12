@@ -15,7 +15,7 @@
 
     // 支付宝支付
     $result = Payment::driver('alipay')
-        ->setPayType('ali_web') // 可不设置此参数，默认为“ali_web”（网页扫码）支付方式，'ali_wap'为移动端支付
+        ->setPayType('ali_web') // 可不设置此参数，默认为“ali_web”（网页扫码）支付方式，“ali_wap”为移动端支付
         ->setOrder([
             'body'         => '商品描述',
             'subject'      => '订单名称',
