@@ -137,7 +137,10 @@ class AlipayHandler extends PaymentHandlerAbstract
      */
     function refund()
     {
-        // TODO: Implement refund() method.
+        $this->setSign(self::API_METHOD_NAME_REFUND);
+        $data = $this->retData;
+
+        return $this->sendReq($data, self::API_METHOD_NAME_REFUND, 'GET');
     }
 
     /**
@@ -147,19 +150,44 @@ class AlipayHandler extends PaymentHandlerAbstract
      */
     function refundQuery()
     {
-        // TODO: Implement refundQuery() method.
+        $this->setSign(self::API_METHOD_NAME_REFUND_QUERY);
+        $data = $this->retData;
+
+        return $this->sendReq($data, self::API_METHOD_NAME_REFUND_QUERY, 'GET');
     }
 
     /**
-     * 账单下载
+     * 对账单下载
      *
      * @return mixed
      */
     function download()
     {
-        // TODO: Implement download() method.
+        $this->setSign(self::API_METHOD_NAME_DOWNLOAD);
+        $data = $this->retData;
+
+        $result = $this->sendReq($data, self::API_METHOD_NAME_DOWNLOAD, 'GET');
+
+        if (array_get($result, 'code') == 10000) { // 请求成功
+            header('Location: ' . array_get($result, 'bill_download_url'));
+            exit;
+        }
+
+        return $result;
     }
 
+    /**
+     * 关闭交易
+     *
+     * @return mixed
+     */
+    function close()
+    {
+        $this->setSign(self::API_METHOD_NAME_CLOSE);
+        $data = $this->retData;
+
+        return $this->sendReq($data, self::API_METHOD_NAME_CLOSE, 'GET');
+    }
 
 
     /**
@@ -174,7 +202,7 @@ class AlipayHandler extends PaymentHandlerAbstract
     {
         $client = new Client([
             'base_uri' => array_get($this->config, 'gatewayUrl'),
-            'timeout' => '10.0'
+            'timeout'  => '10.0'
         ]);
         $method = strtoupper($method);
         $options = [];
@@ -203,15 +231,15 @@ class AlipayHandler extends PaymentHandlerAbstract
             throw new PaymentException('返回数据 json 解析失败');
         }
         $responseKey = str_ireplace('.', '_', $method_name) . '_response';
-        if (! isset($body[$responseKey])) {
+        if (!isset($body[$responseKey])) {
             throw new PaymentException('支付宝系统故障或非法请求');
         }
         // 验证签名，检查支付宝返回的数据
         $flag = $this->verifySign($body[$responseKey], $body['sign']);
-        if (! $flag) {
+        if (!$flag) {
             throw new PaymentException('支付宝返回数据被篡改。请检查网络是否安全！');
         }
-        // 这里可能带来不兼容问题。原先会检查code ，不正确时会抛出异常，而不是直接返回
+
         return $body[$responseKey];
     }
 
@@ -243,16 +271,16 @@ class AlipayHandler extends PaymentHandlerAbstract
         $bizContent = SomeUtils::paraFilter($bizContent);// 过滤掉空值，下面不用在检查是否为空
         $signData = [
             // 公共参数
-            'app_id'        => array_get($this->config, 'app_id'),
-            'method'        => $method_name,
-            'format'        => array_get($this->config, 'format'),
-            'charset'       => array_get($this->config, 'charset'),
-            'sign_type'     => array_get($this->config, 'sign_type'),
-            'timestamp'     => date('Y-m-d H:i:s'),
-            'version'       => array_get($this->config, 'version'),
-            'notify_url'    => array_get($this->config, 'notify_url'),
+            'app_id'      => array_get($this->config, 'app_id'),
+            'method'      => $method_name,
+            'format'      => array_get($this->config, 'format'),
+            'charset'     => array_get($this->config, 'charset'),
+            'sign_type'   => array_get($this->config, 'sign_type'),
+            'timestamp'   => date('Y-m-d H:i:s'),
+            'version'     => array_get($this->config, 'version'),
+            'notify_url'  => array_get($this->config, 'notify_url'),
             // 业务参数
-            'biz_content'   => json_encode($bizContent, JSON_UNESCAPED_UNICODE),
+            'biz_content' => json_encode($bizContent, JSON_UNESCAPED_UNICODE),
         ];
         // 电脑支付、wap支付 添加额外参数
         if (in_array($method_name, ['alipay.trade.page.pay', 'alipay.trade.wap.pay'])) {
@@ -266,18 +294,67 @@ class AlipayHandler extends PaymentHandlerAbstract
      * 业务请求参数的集合，最大长度不限，除公共参数外所有请求参数都必须放在这个参数中传递
      *
      * @return array
+     *
+     * 返回数据格式如下：
+     *     $content = [
+     *         // 支付宝交易号
+     *         'trade_no'       => strval(array_get($order, 'trade_no')),
+     *         // 商户订单号
+     *         'out_trade_no'   => strval(array_get($order, 'out_trade_no')),
+     *         // 为固定值产品标示码，固定值：QUICK_WAP_PAY
+     *         'product_code'   => 'FAST_INSTANT_TRADE_PAY',
+     *         // 支付金额
+     *         'total_amount'   => strval(array_get($order, 'total_amount')),
+     *         // 订单名称
+     *         'subject'        => strval(array_get($order, 'subject')),
+     *         // 商品描述
+     *         'body'           => strval(array_get($order, 'body')),
+     *         // 超时时间
+     *         'time_express'   => strval(array_get($order, 'time_express')),
+     *         // 退款金额
+     *         'refund_amount'  => strval(array_get($order, 'refund_amount')),
+     *         // 退款请求号，标识一次退款请求，同一笔交易多次退款需要保证唯一，如需部分退款，则此参数必传，如果在退款请求时未传入，则该值为创建交易时的外部交易号，退款查询接口必填
+     *         'out_request_no' => strval(array_get($order, 'out_request_no')),
+     *         // 退款原因
+     *         'return_reason'  => strval(array_get($order, 'return_reason')),
+     *         // 账单类型，商户通过接口或商户经开放平台授权后其所属服务商通过接口可以获取以下账单类型：trade、signcustomer；
+     *         // trade指商户基于支付宝交易收单的业务账单；signcustomer是指基于商户支付宝余额收入及支出等资金变动的帐务账单；
+     *         'bill_type'      => strval(array_get($order, 'bill_type', 'signcustomer')),
+     *         // 账单时间：日账单格式为yyyy-MM-dd，月账单格式为yyyy-MM。
+     *         'bill_date'      => strval(array_get($order, 'bill_date')),
+     *     ];
+     *
      */
     protected function getBizContent()
     {
         $order = array_get($this->config, 'order');
-        $content = [
-            'out_trade_no'  => strval(array_get($order, 'out_trade_no')),
-            // 销售产品码，商家和支付宝签约的产品码，为固定值
-            'product_code'  => 'FAST_INSTANT_TRADE_PAY',
-            'total_amount'  => strval(array_get($order, 'total_amount')),
-            'subject'       => strval(array_get($order, 'subject')),
-            'body'          => strval(array_get($order, 'body')),
-        ];
+        $content = [];
+
+        // 支付宝交易号
+        array_key_exists('trade_no', $order) && $content['trade_no'] = strval(array_get($order, 'trade_no'));
+        // 商户订单号
+        array_key_exists('out_trade_no', $order) && $content['out_trade_no'] = strval(array_get($order, 'out_trade_no'));
+        // 为固定值产品标示码，固定值：QUICK_WAP_PAY
+        $content['product_code'] = 'FAST_INSTANT_TRADE_PAY';
+        // 支付金额
+        array_key_exists('total_amount', $order) && $content['total_amount'] = strval(array_get($order, 'total_amount'));
+        // 订单名称
+        array_key_exists('subject', $order) && $content['subject'] = strval(array_get($order, 'subject'));
+        // 商品描述
+        array_key_exists('body', $order) && $content['body'] = strval(array_get($order, 'body'));
+        // 超时时间
+        array_key_exists('time_express', $order) && $content['time_express'] = strval(array_get($order, 'time_express'));
+        // 退款金额
+        array_key_exists('refund_amount', $order) && $content['refund_amount'] = strval(array_get($order, 'refund_amount'));
+        // 退款请求号，标识一次退款请求，同一笔交易多次退款需要保证唯一，如需部分退款，则此参数必传，如果在退款请求时未传入，则该值为创建交易时的外部交易号，退款查询接口必填
+        array_key_exists('out_request_no', $order) && $content['out_request_no'] = strval(array_get($order, 'out_request_no'));
+        // 退款原因
+        array_key_exists('return_reason', $order) && $content['return_reason'] = strval(array_get($order, 'return_reason'));
+        // 账单类型，商户通过接口或商户经开放平台授权后其所属服务商通过接口可以获取以下账单类型：trade、signcustomer；
+        // trade指商户基于支付宝交易收单的业务账单；signcustomer是指基于商户支付宝余额收入及支出等资金变动的帐务账单；
+        array_key_exists('bill_type', $order) && $content['bill_type'] = strval(array_get($order, 'bill_type'));
+        // 账单时间：日账单格式为yyyy-MM-dd，月账单格式为yyyy-MM。
+        array_key_exists('bill_date', $order) && $content['bill_date'] = strval(array_get($order, 'bill_date'));
 
         return $content;
     }
@@ -307,7 +384,7 @@ class AlipayHandler extends PaymentHandlerAbstract
     /**
      * 检查支付宝数据 签名是否被篡改
      * @param array $data
-     * @param string $sign  支付宝返回的签名结果
+     * @param string $sign 支付宝返回的签名结果
      * @return bool
      */
     protected function verifySign(array $data, $sign)

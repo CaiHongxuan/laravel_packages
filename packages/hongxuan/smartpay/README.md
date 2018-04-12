@@ -1,20 +1,29 @@
 # smartpay
 用于Laravel的第三方支付工具包，使用IOC容器技术，支持composer加载。整合支付宝、微信等支付方式
 
+# 目前实现的功能
+1. 支付宝网页扫码支付
+2. 支付宝移动端支付
+3. 支付宝交易查询
+4. 支付宝交易退款
+5. 支付宝交易退款查询
+6. 支付宝交易关闭
+7. 支付宝对账单下载
+
 # 使用例子
 ```php
 
-    // 支付宝网页扫码支付
+    // 支付宝支付
     $result = Payment::driver('alipay')
-        ->setPayType('ali_web') // 可不设置此参数，默认为“ali_web”（网页扫码）支付方式
+        ->setPayType('ali_web') // 可不设置此参数，默认为“ali_web”（网页扫码）支付方式，'ali_wap'为移动端支付
         ->setOrder([
             'body'         => '商品描述',
             'subject'      => '订单名称',
             'total_amount' => 0.01,   // 支付金额
             'out_trade_no' => '1010', // 商户订单号
         ])
-        ->setNotifyUrl('http://www.baidu.com') // 异步通知地址，公网可以访问
-        ->setReturnUrl('http://www.baidu.com') // 同步跳转地址，公网可访问
+        ->setNotifyUrl('http://www.baidu.com') // 异步通知地址，公网可以访问，可不设置此参数，默认采用配置文件的"notify_url"参数
+        ->setReturnUrl('http://www.baidu.com') // 同步跳转地址，公网可访问，可不设置此参数，默认采用配置文件的"return_url"参数
         ->pay();
 
 ```
@@ -24,8 +33,65 @@
     // 支付宝交易查询
     $result = Payment::driver('alipay')
         ->setOrder([
-            'out_trade_no' => 'D1711130001', // 商户订单号
+            'trade_no'     => '',     // 支付宝交易号
+            'out_trade_no' => '0101', // 商户订单号
         ])
         ->tradeQuery();
+
+```
+
+```php
+
+    // 支付宝交易退款
+    $result = Payment::driver('alipay')
+        ->setOrder([
+            'refund_amount'  => 0.02,      // 退款金额
+            'trade_no'       => '',        // 支付宝交易号
+            'out_trade_no'   => '0101',    // 商户订单号
+            'out_request_no' => '0101',    // 标识一次退款请求，同一笔交易多次退款需要保证唯一，如需部分退款，则此参数必传
+            'refund_reason'  => '退款理由', // 退款原因
+        ])
+        ->refund();
+
+```
+
+```php
+
+    // 支付宝交易退款查询
+    $result = Payment::driver('alipay')
+        ->setOrder([
+            'trade_no'       => '',     // 支付宝交易号
+            'out_trade_no'   => '0101', // 商户订单号
+            'out_request_no' => '0101', // 请求退款接口时，传入的退款请求号，如果在退款请求时未传入，则该值为创建交易时的外部交易号，必填
+        ])
+        ->refundQuery();
+
+```
+
+```php
+
+    // 支付宝交易关闭
+    $result = Payment::driver('alipay')
+        ->setOrder([
+            // trade_no，out_trade_no不可同时为空，优先采用trade_no
+            'trade_no'     => '',     // 支付宝交易号
+            'out_trade_no' => '0101', // 商户订单号
+        ])
+        ->close();
+
+```
+
+```php
+
+    // 支付宝对账单下载
+    $result = Payment::driver('alipay')
+        ->setOrder([
+            // 账单类型，商户通过接口或商户经开放平台授权后其所属服务商通过接口可以获取以下账单类型：trade、signcustomer；
+            // trade指商户基于支付宝交易收单的业务账单；signcustomer是指基于商户支付宝余额收入及支出等资金变动的帐务账单；
+            'bill_type' => 'signcustomer',
+            // 账单时间：日账单格式为yyyy-MM-dd，月账单格式为yyyy-MM。
+            'bill_date' => date('Y-m', strtotime('2017-09-16 10:10:10'))
+        ])
+        ->download();
 
 ```
