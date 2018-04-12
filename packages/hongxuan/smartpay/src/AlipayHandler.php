@@ -74,7 +74,7 @@ class AlipayHandler extends PaymentHandlerAbstract
         if (!isset($config['app_id']) || trim($config['app_id']) == "") {
             throw new PaymentException("app_id should not be NULL!");
         }
-        if (!isset($config['mpk']) || trim($config['mpk']) == "") {
+        if (!isset($config['private_key']) || trim($config['private_key']) == "") {
             throw new PaymentException("private_key should not be NULL!");
         }
         if (!isset($config['alipay_public_key']) || trim($config['alipay_public_key']) == "") {
@@ -286,11 +286,11 @@ class AlipayHandler extends PaymentHandlerAbstract
     {
         switch (array_get($this->config, 'sign_type')) {
             case 'RSA':
-                $rsa = new RsaEncrypt(SomeUtils::getRsaKeyValue(array_get($this->config, 'mpk')));
+                $rsa = new RsaEncrypt(SomeUtils::getRsaKeyValue(array_get($this->config, 'private_key')));
                 $sign = $rsa->encrypt($signStr);
                 break;
             case 'RSA2':
-                $rsa = new Rsa2Encrypt(SomeUtils::getRsaKeyValue(array_get($this->config, 'mpk')));
+                $rsa = new Rsa2Encrypt(SomeUtils::getRsaKeyValue(array_get($this->config, 'private_key')));
                 $sign = $rsa->encrypt($signStr);
                 break;
             default:
