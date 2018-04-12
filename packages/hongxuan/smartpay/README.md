@@ -18,3 +18,14 @@
         ->pay();
 
 ```
+
+```php
+
+    // 支付宝交易查询
+    $result = Payment::driver('alipay')
+        ->setOrder([
+            'out_trade_no' => 'D1711130001', // 商户订单号
+        ])
+        ->tradeQuery();
+
+```

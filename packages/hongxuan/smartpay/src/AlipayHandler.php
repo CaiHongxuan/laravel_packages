@@ -110,7 +110,7 @@ class AlipayHandler extends PaymentHandlerAbstract
                 (new AliWebPay($this->config))->pay();
                 break;
             case self::ALI_WAP:
-                AliWapPay::pay($this->config);
+                (new AliWapPay($this->config))->pay();
                 break;
             default :
                 (new AliWebPay($this->config))->pay();
@@ -124,7 +124,10 @@ class AlipayHandler extends PaymentHandlerAbstract
      */
     function tradeQuery()
     {
-        // TODO: Implement tradeQuery() method.
+        $this->setSign(self::API_METHOD_NAME_QUERY);
+        $data = $this->retData;
+
+        return $this->sendReq($data, self::API_METHOD_NAME_QUERY, 'GET');
     }
 
     /**
@@ -177,11 +180,13 @@ class AlipayHandler extends PaymentHandlerAbstract
         $options = [];
         if ($method === 'GET') {
             $options = [
-                'query' => $data,
+                'verify'      => false,
+                'query'       => $data,
                 'http_errors' => false
             ];
         } elseif ($method === 'POST') {
             $options = [
+                'verify'      => false,
                 'form_params' => $data,
                 'http_errors' => false
             ];
@@ -249,7 +254,7 @@ class AlipayHandler extends PaymentHandlerAbstract
             // 业务参数
             'biz_content'   => json_encode($bizContent, JSON_UNESCAPED_UNICODE),
         ];
-        // 电脑支付  wap支付添加额外参数
+        // 电脑支付、wap支付 添加额外参数
         if (in_array($method_name, ['alipay.trade.page.pay', 'alipay.trade.wap.pay'])) {
             $signData['return_url'] = array_get($this->config, 'return_url');
         }

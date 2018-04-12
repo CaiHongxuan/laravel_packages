@@ -7,21 +7,21 @@
  */
 
 namespace Hongxuan\Smartpay\Services\Alipay;
+use Hongxuan\Smartpay\AlipayHandler;
 
 /**
  * 支付宝手机网站支付
  * Class AliWapPay
  * @package Hongxuan\Smartpay\Services\Alipay
  */
-class AliWapPay
+class AliWapPay extends AlipayHandler
 {
 
     /**
      * 支付
-     * @param $config
      * @return string
      */
-    public static function pay($config)
+    public function pay()
     {
         return 'wap pay';
     }
