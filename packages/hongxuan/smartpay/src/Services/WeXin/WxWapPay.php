@@ -7,13 +7,14 @@
  */
 
 namespace Hongxuan\Smartpay\Services\WeXin;
+use Hongxuan\Smartpay\WeXinHandler;
 
 /**
  * 微信H5支付
  * Class WxWapPay
  * @package Hongxuan\Smartpay\Services\WeXin
  */
-class WxWapPay
+class WxWapPay extends WeXinHandler
 {
 
     public function pay()

@@ -9,6 +9,8 @@
 namespace Hongxuan\Smartpay\Utils;
 
 
+use Hongxuan\Smartpay\PaymentException;
+
 class SomeUtils
 {
     /**
@@ -173,14 +175,18 @@ class SomeUtils
     }
 
     /**
-     * 获取rsa密钥内容
+     * 获取rsa密钥、证书内容
      * @param string $key 传入的密钥信息， 可能是文件或者字符串
      * @param string $type
-     *
-     * @return string
+     * @param string $name ['RSA', 'CERT']
+     * @return null|string
+     * @throws PaymentException
      */
-    public static function getRsaKeyValue($key, $type = 'private')
+    public static function getRsaKeyValue($key, $type = 'private', $name = 'RSA')
     {
+        if (!in_array($name, ['RSA', 'CERT'])) {
+            throw new PaymentException('仅支持RSA与CERT方式');
+        }
         if (is_file($key)) {// 是文件
             $keyStr = @file_get_contents($key);
         } else {
@@ -191,7 +197,13 @@ class SomeUtils
         }
         $keyStr = str_replace(PHP_EOL, '', $keyStr);
         // 为了解决用户传入的密钥格式，这里进行统一处理
-        if ($type === 'private') {
+        if ($name === 'CERT' && $type === 'private') {
+            $beginStr = '-----BEGIN PRIVATE KEY-----';
+            $endStr = '-----END PRIVATE KEY-----';
+        } elseif ($name === 'CERT' && $type != 'private') {
+            $beginStr = '-----BEGIN CERTIFICATE-----';
+            $endStr = '-----END CERTIFICATE-----';
+        } elseif ($name === 'RSA' && $type === 'private') {
             $beginStr = '-----BEGIN RSA PRIVATE KEY-----';
             $endStr = '-----END RSA PRIVATE KEY-----';
         } else {

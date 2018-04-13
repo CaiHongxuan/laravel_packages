@@ -26,6 +26,22 @@
         ->setReturnUrl('http://www.baidu.com') // 同步跳转地址，公网可访问，可不设置此参数，默认采用配置文件的"return_url"参数
         ->pay();
 
+
+    // 微信扫码支付
+    $result = Payment::driver('weixin')
+        ->setPayType('wx_qr')// 可不设置此参数，默认为“wx_qr”（扫码）支付方式
+        ->setOrder([
+            'body'         => '商品描述',
+            'total_amount' => 0.01,   // 支付金额
+            'out_trade_no' => '0101', // 商户订单号
+            'product_id'   => '0101', // 商品ID
+            'attach'       => 'test', // 附加数据，非必填，在查询API和支付通知中原样返回，该字段主要用于商户携带订单的自定义数据的值
+            'time_start'   => date('YmdHis'), // 订单生成时间，格式为yyyyMMddHHmmss，如2009年12月25日9点10分10秒表示为20091225091010
+            'goods_tag'    => 'test', // 商品标记，非必填，代金券或立减优惠功能的参数，说明详见代金券或立减优惠
+        ])
+        ->setNotifyUrl('http://www.baidu.com') // 异步通知地址，公网可以访问
+        ->pay();
+
 ```
 
 ```php

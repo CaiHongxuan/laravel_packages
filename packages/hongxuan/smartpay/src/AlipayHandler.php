@@ -268,7 +268,7 @@ class AlipayHandler extends PaymentHandlerAbstract
     protected function buildData($method_name)
     {
         $bizContent = $this->getBizContent();
-        $bizContent = SomeUtils::paraFilter($bizContent);// 过滤掉空值，下面不用在检查是否为空
+        $bizContent = SomeUtils::paraFilter($bizContent);// 过滤掉空值
         $signData = [
             // 公共参数
             'app_id'      => array_get($this->config, 'app_id'),
