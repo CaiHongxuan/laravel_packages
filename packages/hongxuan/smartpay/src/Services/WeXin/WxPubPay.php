@@ -7,7 +7,9 @@
  */
 
 namespace Hongxuan\Smartpay\Services\WeXin;
+
 use Hongxuan\Smartpay\PaymentException;
+use Hongxuan\Smartpay\Utils\SomeUtils;
 use Hongxuan\Smartpay\WeXinHandler;
 
 /**
@@ -18,21 +20,35 @@ use Hongxuan\Smartpay\WeXinHandler;
 class WxPubPay extends WeXinHandler
 {
 
+    /**
+     * 支付
+     * @return mixed|string
+     * @throws PaymentException
+     */
     public function pay()
     {
         // 公众号支付,必须设置openid
-        $openid = $this->openid;
-        if (empty($openid)) {
+        if (!array_get($this->config,'order.openid')) {
             throw new PaymentException('用户在商户appid下的唯一标识,公众号支付,必须设置该参数.');
         }
 
-        $subMchId = $this->sub_mch_id;// 如果是服务商模式，则 sub_openid 必须提供
-        $subOpenid = $this->sub_openid;
-        if ($subMchId && empty($subOpenid)) {
-            throw new PaymentException('公众号的服务商模式，必须提供 sub_openid 参数.');
-        }
+        $this->setSign(self::TRADE_TYPE_WX_PUB);
+        $data = $this->retData;
+        $xml = SomeUtils::toXml($data);
 
-        return '';
+        $ret = $this->sendReq($xml, self::PAY_URL, 'POST');
+
+        $result = [
+            'appId'     => $ret['appid'],
+            'timeStamp' => time(),
+            'nonceStr'  => SomeUtils::getNonceStr(),
+            'package'   => 'prepay_id=' . $ret['prepay_id'],
+            'signType'  => array_get($this->config, 'sign_type')
+        ];
+        $signStr = SomeUtils::createLinkString($result);
+        $result['paySign'] = $this->makeSign($signStr);
+
+        return $result;
     }
 
 }

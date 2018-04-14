@@ -23,7 +23,6 @@ class Rsa2Encrypt
     /**
      * 设置key
      * @param $key
-     * @author helei
      */
     public function setKey($key)
     {
@@ -35,7 +34,6 @@ class Rsa2Encrypt
      * @param string $data 签名的数组
      * @throws PaymentException
      * @return string
-     * @author helei
      */
     public function encrypt($data)
     {
@@ -58,7 +56,6 @@ class Rsa2Encrypt
      * @param string $content 需要解密的内容，密文
      * @throws PaymentException
      * @return string
-     * @author helei
      */
     public function decrypt($content)
     {
@@ -89,7 +86,6 @@ class Rsa2Encrypt
      * @param string $sign 要校对的的签名结果
      * @throws PaymentException
      * @return bool
-     * @author helei
      */
     public function rsaVerify($data, $sign)
     {

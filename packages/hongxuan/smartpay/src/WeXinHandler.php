@@ -10,12 +10,10 @@ namespace Hongxuan\Smartpay;
 
 
 use GuzzleHttp\Client;
-use Hongxuan\Smartpay\Facades\Payment;
 use Hongxuan\Smartpay\Services\WeXin\WxPubPay;
 use Hongxuan\Smartpay\Services\WeXin\WxQrPay;
 use Hongxuan\Smartpay\Services\WeXin\WxWapPay;
 use Hongxuan\Smartpay\Utils\SomeUtils;
-use Illuminate\Support\Facades\Cache;
 
 class WeXinHandler extends PaymentHandlerAbstract
 {
@@ -37,7 +35,7 @@ class WeXinHandler extends PaymentHandlerAbstract
     public static $pay_type = [
         self::WX_QR,
         self::WX_PUB,
-        self::WX_WAP,
+//        self::WX_WAP,
     ];
 
     /**
@@ -54,7 +52,7 @@ class WeXinHandler extends PaymentHandlerAbstract
      * 需要像微信请求的url。默认是统一下单url
      * @var string $reqUrl
      */
-    const QR_URL = 'https://api.mch.weixin.qq.com/pay/unifiedorder';
+    const PAY_URL = 'https://api.mch.weixin.qq.com/pay/unifiedorder';
 
     public function __construct(array $config = [])
     {
@@ -98,6 +96,19 @@ class WeXinHandler extends PaymentHandlerAbstract
         $pay_type = array_get($this->config, 'pay_type', self::WX_QR);
         if (!in_array($pay_type, self::$pay_type)) {
             throw new PaymentException('Unsupported payment methods');
+        }
+        $order = array_get($this->config, 'order');
+        // 检查订单号是否合法
+        if (!isset($order['out_trade_no']) || empty($order['out_trade_no']) || mb_strlen($order['out_trade_no']) > 64) {
+            throw new PaymentException('订单号不能为空，并且长度不能超过64位');
+        }
+        // 检查金额不能低于0.01
+        if (!isset($order['total_amount']) || bccomp($order['total_amount'], 0.01, 2) === -1) {
+            throw new PaymentException('支付金额不能低于 0.01 元');
+        }
+        // 检查 商品名称
+        if (!isset($order['body']) || empty($order['body'])) {
+            throw new PaymentException('必须提供商品名称');
         }
 
         switch ($pay_type) {
@@ -156,11 +167,12 @@ class WeXinHandler extends PaymentHandlerAbstract
     }
 
     /**
-     * 发送完了请求
+     * 发送请求
+     *
      * @param string $xml
      * @param string $reqUrl 请求地址
      * @param string $method 网络请求的方法， get post 等
-     * @return mixed
+     * @return array|false
      * @throws PaymentException
      */
     protected function sendReq($xml, $reqUrl, $method = 'POST')
@@ -209,7 +221,9 @@ class WeXinHandler extends PaymentHandlerAbstract
 
     /**
      * 设置签名
+     *
      * @param $trade_type [微信支付类型]
+     * @throws PaymentException
      */
     protected function setSign($trade_type)
     {
@@ -232,8 +246,6 @@ class WeXinHandler extends PaymentHandlerAbstract
      * @property string $mch_id  微信支付分配的商户号
      * @property string $notify_url  异步通知的url
      * @property string time_stamp  设置支付时间戳
-     * @property string $appCertPem 从apiclient_cert.p12中导出证书部分的文件，为pem格式，
-     * @property string $appKeyPem 从apiclient_key.pem中导出密钥部分的文件，为pem格式
      * @property string $trade_type   支付类型
      * @param $trade_type [支付类型]
      */
@@ -254,17 +266,17 @@ class WeXinHandler extends PaymentHandlerAbstract
 //            'op_user_id' => trim(array_get($this->config, 'op_user_id', array_get($this->config, 'mch_id'))),
         ];
 
-        if ($trade_type == self::TRADE_TYPE_WX_PUB) {
-            $signData['signType']   = array_get($this->config, 'sign_type');
-            $signData['appId']      = trim(array_get($this->config, 'app_id'));
-            $signData['timeStamp']  = time();
-            $signData['nonceStr']   = SomeUtils::getNonceStr();
-        }
+//        if ($trade_type == self::TRADE_TYPE_WX_PUB) {
+//            $signData['signType']   = array_get($this->config, 'sign_type');
+//            $signData['appId']      = trim(array_get($this->config, 'app_id'));
+//            $signData['timeStamp']  = time();
+//            $signData['nonceStr']   = SomeUtils::getNonceStr();
+//        }
 
-        if ($trade_type == self::TRADE_TYPE_WX_QR) {
+//        if ($trade_type == self::TRADE_TYPE_WX_QR) {
             // 设置APP和网页支付提交用户端ip，Native支付填调用微信支付API的机器IP。
             $signData['spbill_create_ip'] = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1';
-        }
+//        }
 
         $signData = array_merge($signData, $bizContent);
 
@@ -355,9 +367,10 @@ class WeXinHandler extends PaymentHandlerAbstract
 
     /**
      * 检查微信返回的数据是否被篡改过
+     *
      * @param array $retData
-     * @return boolean
-     * @author helei
+     * @return bool
+     * @throws PaymentException
      */
     protected function verifySign(array $retData)
     {

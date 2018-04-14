@@ -150,12 +150,12 @@ class SomeUtils
      * 把数组所有元素，按照“参数=参数值”的模式用“&”字符拼接成字符串
      * @param array $para 需要拼接的数组
      * @return string
-     * @throws \Exception
+     * @throws PaymentException
      */
     public static function createLinkString($para)
     {
         if (! is_array($para)) {
-            throw new \Exception('必须传入数组参数');
+            throw new PaymentException('必须传入数组参数');
         }
         reset($para);
         $arg = '';

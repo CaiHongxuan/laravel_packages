@@ -7,6 +7,8 @@
  */
 
 namespace Hongxuan\Smartpay\Services\WeXin;
+
+use Hongxuan\Smartpay\PaymentException;
 use Hongxuan\Smartpay\WeXinHandler;
 
 /**
@@ -17,9 +19,14 @@ use Hongxuan\Smartpay\WeXinHandler;
 class WxWapPay extends WeXinHandler
 {
 
+    /**
+     * 支付
+     * @return array|false|mixed
+     * @throws PaymentException
+     */
     public function pay()
     {
-        return '';
+        throw new PaymentException('暂不支持该支付方式');
     }
 
 }

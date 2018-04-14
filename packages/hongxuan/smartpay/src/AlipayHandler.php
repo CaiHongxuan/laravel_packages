@@ -121,6 +121,7 @@ class AlipayHandler extends PaymentHandlerAbstract
      * 订单查询
      *
      * @return mixed
+     * @throws PaymentException
      */
     function tradeQuery()
     {
@@ -134,6 +135,7 @@ class AlipayHandler extends PaymentHandlerAbstract
      * 订单退款
      *
      * @return mixed
+     * @throws PaymentException
      */
     function refund()
     {
@@ -147,6 +149,7 @@ class AlipayHandler extends PaymentHandlerAbstract
      * 订单退款查询
      *
      * @return mixed
+     * @throws PaymentException
      */
     function refundQuery()
     {
@@ -160,6 +163,7 @@ class AlipayHandler extends PaymentHandlerAbstract
      * 对账单下载
      *
      * @return mixed
+     * @throws PaymentException
      */
     function download()
     {
@@ -180,6 +184,7 @@ class AlipayHandler extends PaymentHandlerAbstract
      * 关闭交易
      *
      * @return mixed
+     * @throws PaymentException
      */
     function close()
     {
@@ -246,6 +251,7 @@ class AlipayHandler extends PaymentHandlerAbstract
     /**
      * 设置签名
      * @param $method_name [支付宝API接口名称]
+     * @throws PaymentException
      */
     protected function setSign($method_name)
     {
@@ -363,6 +369,7 @@ class AlipayHandler extends PaymentHandlerAbstract
      * 签名算法实现
      * @param string $signStr
      * @return string
+     * @throws PaymentException
      */
     protected function makeSign($signStr)
     {
@@ -383,9 +390,10 @@ class AlipayHandler extends PaymentHandlerAbstract
 
     /**
      * 检查支付宝数据 签名是否被篡改
-     * @param array $data
+     * @param array  $data
      * @param string $sign 支付宝返回的签名结果
      * @return bool
+     * @throws PaymentException
      */
     protected function verifySign(array $data, $sign)
     {

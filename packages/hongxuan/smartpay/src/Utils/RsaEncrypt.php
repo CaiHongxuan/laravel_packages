@@ -23,7 +23,6 @@ class RsaEncrypt
     /**
      * 设置key
      * @param $key
-     * @author helei
      */
     public function setKey($key)
     {
@@ -33,9 +32,8 @@ class RsaEncrypt
     /**
      * RSA签名, 此处秘钥是私有秘钥
      * @param string $data 签名的数组
-     * @throws \Exception
      * @return string
-     * @author helei
+     * @throws PaymentException
      */
     public function encrypt($data)
     {
@@ -56,9 +54,8 @@ class RsaEncrypt
     /**
      * RSA解密 此处秘钥是用户私有秘钥
      * @param string $content 需要解密的内容，密文
-     * @throws \Exception
      * @return string
-     * @author helei
+     * @throws PaymentException
      */
     public function decrypt($content)
     {
@@ -86,9 +83,8 @@ class RsaEncrypt
      * RSA验签 ，此处的秘钥，是第三方公钥
      * @param string $data 待签名数据
      * @param string $sign 要校对的的签名结果
-     * @throws \Exception
+     * @throws PaymentException
      * @return bool
-     * @author helei
      */
     public function rsaVerify($data, $sign)
     {
