@@ -54,6 +54,8 @@ class WeXinHandler extends PaymentHandlerAbstract
      */
     const PAY_URL = 'https://api.mch.weixin.qq.com/pay/unifiedorder';
     const QUERY_URL = 'https://api.mch.weixin.qq.com/pay/orderquery';
+    const REFUND_URL = 'https://api.mch.weixin.qq.com/secapi/pay/refund';
+    const REFUND_QUERY_URL = 'https://api.mch.weixin.qq.com/pay/orderquery';
 
     public function __construct(array $config = [])
     {
@@ -171,20 +173,69 @@ class WeXinHandler extends PaymentHandlerAbstract
      * 订单退款
      *
      * @return mixed
+     * @throws PaymentException
      */
     function refund()
     {
-        // TODO: Implement refund() method.
+        array_set($this->config, 'order.op_user_id', array_get($this->config, 'order.op_user_id', array_get($this->config, 'mch_id')));
+        $this->setSign();
+        $data = $this->retData;
+        $xml = SomeUtils::toXml($data);
+
+        return $this->sendReq($xml, self::REFUND_URL, 'POST');
     }
 
     /**
      * 订单退款查询
      *
      * @return mixed
+     * @throws PaymentException
      */
     function refundQuery()
     {
-        // TODO: Implement refundQuery() method.
+        $this->setSign();
+        $data = $this->retData;
+        $xml = SomeUtils::toXml($data);
+
+        return $this->sendReq($xml, self::REFUND_QUERY_URL, 'POST');
+
+        /*
+            [
+                "return_code"      => "SUCCESS",
+                "return_msg"       => "OK",
+                "appid"            => "wx9c5a220e17f03ab1",
+                "mch_id"           => "1486973282",
+                "nonce_str"        => "Fc8rrqXC8YKnQcsu",
+                "sign"             => "7760D44A1238B2417F6C7A05D7C0FF3E",
+                "result_code"      => "SUCCESS",
+                "openid"           => "odWrUwmbRaYe-vMzPALsykRhM55g",
+                "is_subscribe"     => "N",
+                "trade_type"       => "JSAPI",
+                "bank_type"        => "CFT",
+                "total_fee"        => "1",
+                "fee_type"         => "CNY",
+                "transaction_id"   => "4200000017201711175229578785",
+                "out_trade_no"     => "D1711170010",
+                "attach"           => [],
+                "time_end"         => "20171117141101",
+                "trade_state"      => "SUCCESS",
+                "cash_fee"         => "1",
+                "trade_state_desc" => "支付成功"
+            ]
+
+            [
+                "return_code"      => "SUCCESS",
+                "return_msg"       => "OK",
+                "appid"            => "wx9c5a220e17f03ab1",
+                "mch_id"           => "1486973282",
+                "nonce_str"        => "9MEtW1zymtseZrrj",
+                "sign"             => "2F423F5FD65A140BE1B6B6D67B8A76F4",
+                "result_code"      => "SUCCESS",
+                "out_trade_no"     => "0101",
+                "trade_state"      => "NOTPAY",
+                "trade_state_desc" => "订单未支付"
+            ]
+        */
     }
 
     /**
@@ -290,8 +341,6 @@ class WeXinHandler extends PaymentHandlerAbstract
             'sign_type'        => array_get($this->config, 'sign_type'), // 签名方式
             'nonce_str'        => SomeUtils::getNonceStr(), // 设置随机字符串，不长于32位。推荐随机数生成算法
             'spbill_create_ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1', // 设置APP和网页支付提交用户端ip，Native支付填调用微信支付API的机器IP
-//            // 设置操作员帐号, 默认为商户号
-//            'op_user_id'       => trim(array_get($this->config, 'op_user_id', array_get($this->config, 'mch_id'))),
         ];
 
         if (in_array($trade_type, self::$pay_type)) {
@@ -344,11 +393,13 @@ class WeXinHandler extends PaymentHandlerAbstract
         // 设置微信支付分配的终端设备号，与下单一致
         array_key_exists('device_info', $order) && $content['device_info'] = strval(array_get($order, 'device_info'));
         // 设置商户系统内部的退款单号，商户系统内部唯一，同一退款单号多次请求只退一笔
-        array_key_exists('out_refund_no', $order) && $content['out_refund_no'] = strval(array_get($order, 'out_refund_no'));
+        array_key_exists('out_request_no', $order) && $content['out_refund_no'] = strval(array_get($order, 'out_request_no'));
         // 设置退款总金额，订单总金额，单位为分，只能为整数，详见支付金额
         array_key_exists('refund_amount', $order) && $content['refund_fee'] = strval(bcmul(array_get($order, 'refund_amount'), 100, 0));
         // 设置微信退款单号refund_id、out_refund_no、out_trade_no、transaction_id四个参数必填一个，如果同时存在优先级为：refund_id>out_refund_no>transaction_id>out_trade_no
         array_key_exists('refund_id', $order) && $content['refund_id'] = strval(array_get($order, 'refund_id'));
+        // 设置操作员帐号, 默认为商户号
+        array_key_exists('op_user_id', $order) && $content['op_user_id'] = strval(array_get($order, 'op_user_id', array_get($this->config, 'mch_id')));
 
         // 设置下载对账单的日期，格式：yyyyMMdd，如：20140603
         array_key_exists('bill_date', $order) && $content['bill_date'] = strval(array_get($order, 'bill_date'));

@@ -74,8 +74,7 @@ class SomeUtils
      */
     public static function toQRimg($text, $widthHeight = 10, $ecLevel = 0, $margin = '0')
     {
-        $chl = urlencode($text);
-        QRcode::png($chl, false, $ecLevel, $widthHeight, $margin);
+        QRcode::png($text, false, $ecLevel, $widthHeight, $margin);
     }
 
     /**

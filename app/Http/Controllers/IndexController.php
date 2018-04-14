@@ -11,6 +11,7 @@ namespace App\Http\Controllers;
 
 use Hongxuan\Smartpay\Facades\Payment;
 use Hongxuan\Smartpay\PaymentException;
+use Hongxuan\Smartpay\Utils\SomeUtils;
 
 class IndexController extends Controller
 {
@@ -24,8 +25,8 @@ class IndexController extends Controller
                 ->setOrder([
                     'body'           => '商品描述',
 //                    'subject'        => '订单名称',
-                    'total_amount'   => 0.01,   // 支付金额
-//                    'refund_amount'  => 0.02,   // 退款金额
+                    'total_amount'   => 0.01,   // 订单总金额
+//                    'refund_amount'  => 0.02,   // 退款总金额
 //                    'trade_no'       => '4200000017201711175229578785', // 微信交易号
                     'out_trade_no'   => '0101', // 商户订单号
                     'product_id'     => '0101', // 商品ID
@@ -33,9 +34,9 @@ class IndexController extends Controller
                     'time_start'     => date('YmdHis'), // 订单生成时间
 //                    'time_expire'    => date('YmdHis', time() + 600), // 订单失效时间
                     'goods_tag'      => 'test', // 商品标记
-                    'openid'         => 'odWrUwmRxJpPsnGpKP4CXKkvPLQ0', // 商品标记
+//                    'openid'         => 'odWrUwmRxJpPsnGpKP4CXKkvPLQ0', // 商品标记
 //                    'time_express'   => '1m', // 超时时间
-//                    'out_request_no' => 'D1711160014', // 标识一次退款请求，同一笔交易多次退款需要保证唯一，如需部分退款，则此参数必传
+//                    'out_request_no' => '0101', // 设置商户系统内部的退款单号，商户系统内部唯一，同一退款单号多次请求只退一笔
 //                    'refund_reason'  => '不要了', // 退款原因
 //                    'bill_type'      => 'signcustomer',
 //                    'bill_date'      => date('Y-m', strtotime('2017-09-16 10:10:10'))

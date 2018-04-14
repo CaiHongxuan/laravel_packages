@@ -87,11 +87,23 @@
     // 支付宝交易退款
     $result = Payment::driver('alipay')
         ->setOrder([
-            'refund_amount'  => 0.02,      // 退款金额
-            'trade_no'       => '',        // 支付宝交易号
-            'out_trade_no'   => '0101',    // 商户订单号
-            'out_request_no' => '0101',    // 标识一次退款请求，同一笔交易多次退款需要保证唯一，如需部分退款，则此参数必传
+            'refund_amount'  => 0.02,       // 退款金额
+            'trade_no'       => '',         // 支付宝交易号
+            'out_trade_no'   => '0101',     // 商户订单号
+            'out_request_no' => '0101',     // 标识一次退款请求，同一笔交易多次退款需要保证唯一，如需部分退款，则此参数必传
             'refund_reason'  => '退款理由', // 退款原因
+        ])
+        ->refund();
+        
+        
+    // 微信交易退款
+    $result = Payment::driver('weixin')
+        ->setOrder([
+            'total_amount'   => 0.02,   // 订单总金额
+            'refund_amount'  => 0.02,   // 退款金额
+            'trade_no'       => '',     // 微信交易号
+            'out_trade_no'   => '0101', // 商户订单号
+            'out_request_no' => '0101', // 设置商户系统内部的退款单号，商户系统内部唯一，同一退款单号多次请求只退一笔
         ])
         ->refund();
 
@@ -105,6 +117,15 @@
             'trade_no'       => '',     // 支付宝交易号
             'out_trade_no'   => '0101', // 商户订单号
             'out_request_no' => '0101', // 请求退款接口时，传入的退款请求号，如果在退款请求时未传入，则该值为创建交易时的外部交易号，必填
+        ])
+        ->refundQuery();
+        
+        
+    // 微信交易退款查询
+    $result = Payment::driver('weixin')
+        ->setOrder([
+            'trade_no'       => '', // 微信交易号
+            'out_trade_no'   => '0101', // 商户订单号
         ])
         ->refundQuery();
 
