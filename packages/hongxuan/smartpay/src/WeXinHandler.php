@@ -32,12 +32,6 @@ class WeXinHandler extends PaymentHandlerAbstract
     const WX_PUB = 'wx_pub'; // 公众号支付（用户在微信内进入商家的H5页面，页面内调用JSSDK完成支付）
     const WX_WAP = 'wx_wap'; // H5支付（用户在微信以外的浏览器请求微信支付的场景唤起微信支付）
 
-    public static $pay_type = [
-        self::WX_QR,
-        self::WX_PUB,
-//        self::WX_WAP,
-    ];
-
     /**
      * 微信支付trade_type支付类型名称
      */
@@ -48,11 +42,18 @@ class WeXinHandler extends PaymentHandlerAbstract
     // H5支付
     const TRADE_TYPE_WX_WAP = 'MWEB';
 
+    public static $pay_type = [
+        self::WX_QR  => self::TRADE_TYPE_WX_QR,
+        self::WX_PUB => self::TRADE_TYPE_WX_PUB,
+//        self::WX_WAP => self::TRADE_TYPE_WX_WAP
+    ];
+
     /**
-     * 需要像微信请求的url。默认是统一下单url
+     * 需要向微信请求的url
      * @var string $reqUrl
      */
     const PAY_URL = 'https://api.mch.weixin.qq.com/pay/unifiedorder';
+    const QUERY_URL = 'https://api.mch.weixin.qq.com/pay/orderquery';
 
     public function __construct(array $config = [])
     {
@@ -94,7 +95,7 @@ class WeXinHandler extends PaymentHandlerAbstract
     {
         // 获取支付方式，默认为：ali_web
         $pay_type = array_get($this->config, 'pay_type', self::WX_QR);
-        if (!in_array($pay_type, self::$pay_type)) {
+        if (!in_array($pay_type, array_keys(self::$pay_type))) {
             throw new PaymentException('Unsupported payment methods');
         }
         $order = array_get($this->config, 'order');
@@ -116,13 +117,13 @@ class WeXinHandler extends PaymentHandlerAbstract
                 return (new WxQrPay($this->config))->pay();
                 break;
             case self::WX_PUB:
-                return(new WxPubPay($this->config))->pay();
+                return (new WxPubPay($this->config))->pay();
                 break;
             case self::WX_WAP:
-                return(new WxWapPay($this->config))->pay();
+                return (new WxWapPay($this->config))->pay();
                 break;
             default :
-                return(new WxQrPay($this->config))->pay();
+                return (new WxQrPay($this->config))->pay();
         }
     }
 
@@ -130,10 +131,40 @@ class WeXinHandler extends PaymentHandlerAbstract
      * 订单查询
      *
      * @return mixed
+     * @throws PaymentException
      */
     function tradeQuery()
     {
-        // TODO: Implement tradeQuery() method.
+        $this->setSign();
+        $data = $this->retData;
+        $xml = SomeUtils::toXml($data);
+
+        return $this->sendReq($xml, self::QUERY_URL, 'POST');
+
+        /*
+            [
+                "return_code"      => "SUCCESS",
+                "return_msg"       => "OK",
+                "appid"            => "wx9c5a220e17f03ab1",
+                "mch_id"           => "1486973282",
+                "nonce_str"        => "fMv7cabjKj1PKf7Z",
+                "sign"             => "FA006B0DB901118F6DD6E6A463658FBA",
+                "result_code"      => "SUCCESS",
+                "openid"           => "odWrUwmbRaYe-vMzPALsykRhM55g",
+                "is_subscribe"     => "N",
+                "trade_type"       => "JSAPI",
+                "bank_type"        => "CFT",
+                "total_fee"        => "1",
+                "fee_type"         => "CNY",
+                "transaction_id"   => "4200000017201711175229578785",
+                "out_trade_no"     => "D1711170010",
+                "attach"           => [],
+                "time_end"         => "20171117141101",
+                "trade_state"      => "SUCCESS",
+                "cash_fee"         => "1",
+                "trade_state_desc" => "支付成功"
+            ]
+        */
     }
 
     /**
@@ -185,7 +216,7 @@ class WeXinHandler extends PaymentHandlerAbstract
         ]);
 
         // 微信部分接口并不需要证书支持。这里为了统一，全部携带证书进行请求
-        $pem_path = array_get($this->config, 'cert_path') ? : __DIR__ . DIRECTORY_SEPARATOR . 'cert';
+        $pem_path = array_get($this->config, 'cert_path') ?: __DIR__ . DIRECTORY_SEPARATOR . 'cert';
         @mkdir($pem_path);
         file_exists($pem_path . DIRECTORY_SEPARATOR . 'apiclient_cert.pem') || file_put_contents($pem_path . DIRECTORY_SEPARATOR . 'apiclient_cert.pem', SomeUtils::getRsaKeyValue(array_get($this->config, 'app_cert_pem'), 'public', 'CERT'));
         file_exists($pem_path . DIRECTORY_SEPARATOR . 'apiclient_key.pem') || file_put_contents($pem_path . DIRECTORY_SEPARATOR . 'apiclient_key.pem', SomeUtils::getRsaKeyValue(array_get($this->config, 'app_key_pem'), 'private', 'CERT'));
@@ -222,10 +253,10 @@ class WeXinHandler extends PaymentHandlerAbstract
     /**
      * 设置签名
      *
-     * @param $trade_type [微信支付类型]
+     * @param string $trade_type [微信支付类型]
      * @throws PaymentException
      */
-    protected function setSign($trade_type)
+    protected function setSign($trade_type = '')
     {
         $this->buildData($trade_type);
         $data = $this->retData;
@@ -240,43 +271,33 @@ class WeXinHandler extends PaymentHandlerAbstract
     }
 
     /**
-     * 构建 支付 加密数据
+     * 构建 公共参数
      *
-     * @property string $app_id   微信分配的公众账号ID
-     * @property string $mch_id  微信支付分配的商户号
-     * @property string $notify_url  异步通知的url
-     * @property string time_stamp  设置支付时间戳
-     * @property string $trade_type   支付类型
-     * @param $trade_type [支付类型]
+     * @property string $app_id 微信分配的公众账号ID
+     * @property string $mch_id 微信支付分配的商户号
+     * @property string time_stamp 设置支付时间戳
+     * @property string $notify_url 异步通知的url
+     * @property string $trade_type 支付类型
+     * @param string    $trade_type 支付类型
      */
-    protected function buildData($trade_type)
+    protected function buildData($trade_type = '')
     {
-        $bizContent = $this->buildBiz();
+        $bizContent = $this->buildBiz($trade_type);
 
         $signData = [
-            'appid'      => trim(array_get($this->config, 'app_id')), // 扫码支付模式
-            'mch_id'     => trim(array_get($this->config, 'mch_id')),
-            'time_stamp' => time(), // 扫码支付模式
-            'sign_type'  => array_get($this->config, 'sign_type'), // 扫码支付模式
-            'trade_type' => $trade_type, //设置支付类型
-            'notify_url' => array_get($this->config, 'notify_url'),
-            // 设置随机字符串，不长于32位。推荐随机数生成算法
-            'nonce_str'  => SomeUtils::getNonceStr(),
+            'appid'            => trim(array_get($this->config, 'app_id')),
+            'mch_id'           => trim(array_get($this->config, 'mch_id')),
+            'sign_type'        => array_get($this->config, 'sign_type'), // 签名方式
+            'nonce_str'        => SomeUtils::getNonceStr(), // 设置随机字符串，不长于32位。推荐随机数生成算法
+            'spbill_create_ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1', // 设置APP和网页支付提交用户端ip，Native支付填调用微信支付API的机器IP
 //            // 设置操作员帐号, 默认为商户号
-//            'op_user_id' => trim(array_get($this->config, 'op_user_id', array_get($this->config, 'mch_id'))),
+//            'op_user_id'       => trim(array_get($this->config, 'op_user_id', array_get($this->config, 'mch_id'))),
         ];
 
-//        if ($trade_type == self::TRADE_TYPE_WX_PUB) {
-//            $signData['signType']   = array_get($this->config, 'sign_type');
-//            $signData['appId']      = trim(array_get($this->config, 'app_id'));
-//            $signData['timeStamp']  = time();
-//            $signData['nonceStr']   = SomeUtils::getNonceStr();
-//        }
-
-//        if ($trade_type == self::TRADE_TYPE_WX_QR) {
-            // 设置APP和网页支付提交用户端ip，Native支付填调用微信支付API的机器IP。
-            $signData['spbill_create_ip'] = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1';
-//        }
+        if (in_array($trade_type, self::$pay_type)) {
+            $signData['notify_url'] = array_get($this->config, 'notify_url'); // 异步通知的url
+            $signData['time_stamp'] = time(); // 支付时间戳
+        }
 
         $signData = array_merge($signData, $bizContent);
 
@@ -287,13 +308,16 @@ class WeXinHandler extends PaymentHandlerAbstract
     /**
      * 业务请求参数的集合，最大长度不限，除公共参数外所有请求参数都必须放在这个参数中传递
      *
+     * @param string $trade_type [支付类型]
      * @return array
      */
-    protected function buildBiz()
+    protected function buildBiz($trade_type = '')
     {
         $order = array_get($this->config, 'order');
         $content = [];
 
+        // 设置支付类型
+        !empty($trade_type) && $content['trade_type'] = $trade_type;
         // 微信交易号
         array_key_exists('trade_no', $order) && $content['transaction_id'] = strval(array_get($order, 'trade_no'));
         // 商户订单号，设置商户系统内部的订单号,32个字符内、可包含字母, 其他说明见商户订单号
