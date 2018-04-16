@@ -7,6 +7,8 @@
  */
 
 namespace Hongxuan\Smartpay\Services\Alipay;
+
+use Hongxuan\Smartpay\PaymentException;
 use Hongxuan\Smartpay\AlipayHandler;
 use Hongxuan\Smartpay\Utils\SomeUtils;
 
@@ -21,6 +23,7 @@ class AliWapPay extends AlipayHandler
     /**
      * 支付
      * @return string
+     * @throws PaymentException
      */
     public function pay()
     {

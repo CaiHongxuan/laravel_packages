@@ -32,6 +32,7 @@
         ->setPayType('wx_qr')// 可不设置此参数，默认为“wx_qr”（扫码）支付方式
         ->setOrder([
             'body'         => '商品描述',
+            'detail'       => '商品详情', // 商品详情，非必填
             'total_amount' => 0.01,   // 支付金额
             'out_trade_no' => '0101', // 商户订单号
             'product_id'   => '0101', // 商品ID
@@ -104,6 +105,7 @@
             'trade_no'       => '',     // 微信交易号
             'out_trade_no'   => '0101', // 商户订单号
             'out_request_no' => '0101', // 设置商户系统内部的退款单号，商户系统内部唯一，同一退款单号多次请求只退一笔
+            'refund_reason'  => '退款理由', // 退款原因，非必填
         ])
         ->refund();
 
@@ -114,7 +116,7 @@
     // 支付宝交易退款查询
     $result = Payment::driver('alipay')
         ->setOrder([
-            'trade_no'       => '',     // 支付宝交易号
+            'trade_no'       => '',     // 支付宝交易号，优先级：trade_no > out_trade_no
             'out_trade_no'   => '0101', // 商户订单号
             'out_request_no' => '0101', // 请求退款接口时，传入的退款请求号，如果在退款请求时未传入，则该值为创建交易时的外部交易号，必填
         ])
@@ -124,7 +126,7 @@
     // 微信交易退款查询
     $result = Payment::driver('weixin')
         ->setOrder([
-            'trade_no'       => '', // 微信交易号
+            'trade_no'       => '',     // 微信交易号，二选一，优先级：trade_no > out_trade_no
             'out_trade_no'   => '0101', // 商户订单号
         ])
         ->refundQuery();
@@ -141,6 +143,16 @@
             'out_trade_no' => '0101', // 商户订单号
         ])
         ->close();
+        
+        
+    // 微信交易关闭
+    $result = Payment::driver('weixin')
+        ->setOrder([
+            // trade_no，out_trade_no不可同时为空，优先采用trade_no
+            'trade_no'     => '',     // 微信交易号
+            'out_trade_no' => '0101', // 商户订单号
+        ])
+        ->close();
 
 ```
 
@@ -154,6 +166,17 @@
             'bill_type' => 'signcustomer',
             // 账单时间：日账单格式为yyyy-MM-dd，月账单格式为yyyy-MM。
             'bill_date' => date('Y-m', strtotime('2017-09-16 10:10:10'))
+        ])
+        ->download();
+        
+        
+    // 微信对账单下载
+    $result = Payment::driver('weixin')
+        ->setOrder([
+            // 设置ALL，返回当日所有订单信息；默认值SUCCESS，返回当日成功支付的订单；REFUND，返回当日退款订单；REVOKED，已撤销的订单
+            'bill_type' => 'ALL', 
+            // 设置下载对账单的日期，格式：yyyyMMdd，如：20140603
+            'bill_date' => date('Ymd', strtotime('2017-11-16 10:10:10')) 
         ])
         ->download();
 

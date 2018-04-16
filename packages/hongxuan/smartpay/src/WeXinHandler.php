@@ -52,10 +52,18 @@ class WeXinHandler extends PaymentHandlerAbstract
      * 需要向微信请求的url
      * @var string $reqUrl
      */
+    // 统一下单接口地址
     const PAY_URL = 'https://api.mch.weixin.qq.com/pay/unifiedorder';
+    // 查询订单接口地址
     const QUERY_URL = 'https://api.mch.weixin.qq.com/pay/orderquery';
+    // 申请退款接口地址
     const REFUND_URL = 'https://api.mch.weixin.qq.com/secapi/pay/refund';
-    const REFUND_QUERY_URL = 'https://api.mch.weixin.qq.com/pay/orderquery';
+    // 退款查询接口地址
+    const REFUND_QUERY_URL = 'https://api.mch.weixin.qq.com/pay/refundquery';
+    // 对账单下载接口地址
+    const DOWNLOAD_URL = 'https://api.mch.weixin.qq.com/pay/downloadbill';
+    // 关闭订单接口地址
+    const CLOSE_URL = 'https://api.mch.weixin.qq.com/pay/closeorder';
 
     public function __construct(array $config = [])
     {
@@ -95,19 +103,23 @@ class WeXinHandler extends PaymentHandlerAbstract
      */
     function pay()
     {
-        // 获取支付方式，默认为：ali_web
+        // 获取支付方式，默认为：wx_qr
         $pay_type = array_get($this->config, 'pay_type', self::WX_QR);
         if (!in_array($pay_type, array_keys(self::$pay_type))) {
             throw new PaymentException('Unsupported payment methods');
         }
         $order = array_get($this->config, 'order');
         // 检查订单号是否合法
-        if (!isset($order['out_trade_no']) || empty($order['out_trade_no']) || mb_strlen($order['out_trade_no']) > 64) {
-            throw new PaymentException('订单号不能为空，并且长度不能超过64位');
+        if (!isset($order['out_trade_no']) || empty($order['out_trade_no']) || mb_strlen($order['out_trade_no']) > 32) {
+            throw new PaymentException('订单号不能为空，并且长度不能超过32位');
         }
         // 检查金额不能低于0.01
         if (!isset($order['total_amount']) || bccomp($order['total_amount'], 0.01, 2) === -1) {
             throw new PaymentException('支付金额不能低于 0.01 元');
+        }
+        // 检查 商品ID
+        if (!isset($order['product_id']) || empty($order['product_id']) ) {
+            throw new PaymentException('必须提供商品');
         }
         // 检查 商品名称
         if (!isset($order['body']) || empty($order['body'])) {
@@ -137,6 +149,12 @@ class WeXinHandler extends PaymentHandlerAbstract
      */
     function tradeQuery()
     {
+        $order = array_get($this->config, 'order');
+        // 检查订单号是否合法
+        if ((!isset($order['trade_no']) || empty($order['trade_no'])) && (!isset($order['out_trade_no']) || empty($order['out_trade_no']) || mb_strlen($order['out_trade_no']) > 32)) {
+            throw new PaymentException('订单号不能为空，并且长度不能超过32位');
+        }
+
         $this->setSign();
         $data = $this->retData;
         $xml = SomeUtils::toXml($data);
@@ -151,62 +169,6 @@ class WeXinHandler extends PaymentHandlerAbstract
                 "mch_id"           => "1486973282",
                 "nonce_str"        => "fMv7cabjKj1PKf7Z",
                 "sign"             => "FA006B0DB901118F6DD6E6A463658FBA",
-                "result_code"      => "SUCCESS",
-                "openid"           => "odWrUwmbRaYe-vMzPALsykRhM55g",
-                "is_subscribe"     => "N",
-                "trade_type"       => "JSAPI",
-                "bank_type"        => "CFT",
-                "total_fee"        => "1",
-                "fee_type"         => "CNY",
-                "transaction_id"   => "4200000017201711175229578785",
-                "out_trade_no"     => "D1711170010",
-                "attach"           => [],
-                "time_end"         => "20171117141101",
-                "trade_state"      => "SUCCESS",
-                "cash_fee"         => "1",
-                "trade_state_desc" => "支付成功"
-            ]
-        */
-    }
-
-    /**
-     * 订单退款
-     *
-     * @return mixed
-     * @throws PaymentException
-     */
-    function refund()
-    {
-        array_set($this->config, 'order.op_user_id', array_get($this->config, 'order.op_user_id', array_get($this->config, 'mch_id')));
-        $this->setSign();
-        $data = $this->retData;
-        $xml = SomeUtils::toXml($data);
-
-        return $this->sendReq($xml, self::REFUND_URL, 'POST');
-    }
-
-    /**
-     * 订单退款查询
-     *
-     * @return mixed
-     * @throws PaymentException
-     */
-    function refundQuery()
-    {
-        $this->setSign();
-        $data = $this->retData;
-        $xml = SomeUtils::toXml($data);
-
-        return $this->sendReq($xml, self::REFUND_QUERY_URL, 'POST');
-
-        /*
-            [
-                "return_code"      => "SUCCESS",
-                "return_msg"       => "OK",
-                "appid"            => "wx9c5a220e17f03ab1",
-                "mch_id"           => "1486973282",
-                "nonce_str"        => "Fc8rrqXC8YKnQcsu",
-                "sign"             => "7760D44A1238B2417F6C7A05D7C0FF3E",
                 "result_code"      => "SUCCESS",
                 "openid"           => "odWrUwmbRaYe-vMzPALsykRhM55g",
                 "is_subscribe"     => "N",
@@ -239,13 +201,191 @@ class WeXinHandler extends PaymentHandlerAbstract
     }
 
     /**
+     * 订单退款
+     *
+     * @return mixed
+     * @throws PaymentException
+     */
+    function refund()
+    {
+        $order = array_get($this->config, 'order');
+        // 检查订单号是否合法
+        if ((!isset($order['trade_no']) || empty($order['trade_no'])) && (!isset($order['out_trade_no']) || empty($order['out_trade_no']) || mb_strlen($order['out_trade_no']) > 32)) {
+            throw new PaymentException('订单号不能为空，并且长度不能超过32位');
+        }
+        // 检查订单总金额不能低于0.01
+        if (!isset($order['total_amount']) || bccomp($order['total_amount'], 0.01, 2) === -1) {
+            throw new PaymentException('订单总金额不能低于 0.01 元');
+        }
+        // 检查退款金额不能低于0.01
+        if (!isset($order['refund_amount']) || bccomp($order['refund_amount'], 0.01, 2) === -1) {
+            throw new PaymentException('退款金额不能低于 0.01 元');
+        }
+        // 检查商户系统内部的退款单号
+        if (!isset($order['out_request_no']) || empty($order['out_request_no'])) {
+            throw new PaymentException('退款单号不能为空');
+        }
+
+        array_set($this->config, 'order.op_user_id', array_get($order, 'op_user_id', array_get($this->config, 'mch_id')));
+        $this->setSign();
+        $data = $this->retData;
+        $xml = SomeUtils::toXml($data);
+
+        return $this->sendReq($xml, self::REFUND_URL, 'POST');
+
+        /*
+            [
+                "return_code"         => "SUCCESS",
+                "return_msg"          => "OK",
+                "appid"               => "wx9c5a220e17f03ab1",
+                "mch_id"              => "1486973282",
+                "nonce_str"           => "xa6gl6ii5xTU9dv6",
+                "sign"                => "6DB0A23C45A8737B006C231D99208EA2",
+                "result_code"         => "SUCCESS",
+                "transaction_id"      => "4200000017201711175229578785",
+                "out_trade_no"        => "D1711170010",
+                "out_refund_no"       => "0101",
+                "refund_id"           => "50000105022018041604166050205",
+                "refund_channel"      => [],
+                "refund_fee"          => "1",
+                "coupon_refund_fee"   => "0",
+                "total_fee"           => "1",
+                "cash_fee"            => "1",
+                "coupon_refund_count" => "0",
+                "cash_refund_fee"     => "1"
+            ]
+        */
+    }
+
+    /**
+     * 订单退款查询
+     *
+     * @return mixed
+     * @throws PaymentException
+     */
+    function refundQuery()
+    {
+        $order = array_get($this->config, 'order');
+        // 检查订单号是否合法
+        if ((!isset($order['trade_no']) || empty($order['trade_no'])) && (!isset($order['out_trade_no']) || empty($order['out_trade_no']) || mb_strlen($order['out_trade_no']) > 32)) {
+            throw new PaymentException('订单号不能为空，并且长度不能超过32位');
+        }
+
+        $this->setSign();
+        $data = $this->retData;
+        $xml = SomeUtils::toXml($data);
+
+        return $this->sendReq($xml, self::REFUND_QUERY_URL, 'POST');
+
+        /*
+            [
+                "appid"                 => "wx9c5a220e17f03ab1",
+                "cash_fee"              => "1",
+                "mch_id"                => "1486973282",
+                "nonce_str"             => "3M88vqkgq5fPpqRD",
+                "out_refund_no_0"       => "0101",
+                "out_trade_no"          => "D1711170010",
+                "refund_account_0"      => "REFUND_SOURCE_UNSETTLED_FUNDS",
+                "refund_channel_0"      => "ORIGINAL",
+                "refund_count"          => "1",
+                "refund_fee"            => "1",
+                "refund_fee_0"          => "1",
+                "refund_id_0"           => "50000105022018041604166050205",
+                "refund_recv_accout_0"  => "支付用户的零钱",
+                "refund_status_0"       => "SUCCESS",
+                "refund_success_time_0" => "2018-04-16 12:35:38",
+                "result_code"           => "SUCCESS",
+                "return_code"           => "SUCCESS",
+                "return_msg"            => "OK",
+                "sign"                  => "A14101149FE4ED53DF67400D41858C3D",
+                "total_fee"             => "1",
+                "transaction_id"        => "4200000017201711175229578785"
+            ]
+        */
+    }
+
+    /**
      * 账单下载
      *
      * @return mixed
+     * @throws PaymentException
      */
     function download()
     {
-        // TODO: Implement download() method.
+        $order = array_get($this->config, 'order');
+        // 检查对账单的日期
+        if (!isset($order['bill_date']) || !preg_match('/^(\d+){8}$/', $order['bill_date'])) {
+            throw new PaymentException('对账单的日期不能为空');
+        }
+
+        // 默认账单类型为：SUCCESS
+        array_set($this->config, 'order.bill_type', array_get($order, 'bill_type', 'SUCCESS'));
+        $this->setSign();
+        $data = $this->retData;
+        $xml = SomeUtils::toXml($data);
+
+        $client = new Client([
+            'timeout' => '10.0'
+        ]);
+
+        $options = [
+            'body'        => $xml,
+            'verify'      => false,
+            'http_errors' => false
+        ];
+        $response = $client->request('POST', self::DOWNLOAD_URL, $options);
+        if ($response->getStatusCode() != '200') {
+            throw new PaymentException('网络发生错误，请稍后再试curl返回码：' . $response->getReasonPhrase());
+        }
+        $body = $response->getBody()->getContents();
+        // 格式化为数组
+        $retData = SomeUtils::toArray($body);
+        if ($retData && strtoupper($retData['return_code']) != 'SUCCESS') {
+            throw new PaymentException('微信返回错误提示：' . $retData['return_msg']);
+        }
+
+        return $body;
+//        $filename = storage_path('app/' .array_get($data, 'bill_date', date('Ymd'))) . '.txt';
+//        File::put($filename, $body);
+//
+//        header('content-disposition:attachment;filename='.basename($filename));
+//        header('content-length:'.filesize($filename));
+//        readfile($filename);
+//        exit;
+    }
+
+    /**
+     * 关闭交易
+     *
+     * @return mixed
+     * @throws PaymentException
+     */
+    function close()
+    {
+        $order = array_get($this->config, 'order');
+        // 检查订单号是否合法
+        if ((!isset($order['trade_no']) || empty($order['trade_no'])) && (!isset($order['out_trade_no']) || empty($order['out_trade_no']) || mb_strlen($order['out_trade_no']) > 32)) {
+            throw new PaymentException('订单号不能为空，并且长度不能超过32位');
+        }
+
+        $this->setSign();
+        $data = $this->retData;
+        $xml = SomeUtils::toXml($data);
+
+        return $this->sendReq($xml, self::CLOSE_URL, 'POST');
+
+        /*
+            [
+                "return_code" => "SUCCESS",
+                "return_msg"  => "OK",
+                "appid"       => "wx9c5a220e17f03ab1",
+                "mch_id"      => "1486973282",
+                "sub_mch_id"  => [],
+                "nonce_str"   => "HnTndlLH6p5gXp7m",
+                "sign"        => "9E53931CA162701FD16B5CC1E039FDE7",
+                "result_code" => "SUCCESS"
+            ]
+        */
     }
 
     /**
@@ -269,13 +409,16 @@ class WeXinHandler extends PaymentHandlerAbstract
         // 微信部分接口并不需要证书支持。这里为了统一，全部携带证书进行请求
         $pem_path = array_get($this->config, 'cert_path') ?: __DIR__ . DIRECTORY_SEPARATOR . 'cert';
         @mkdir($pem_path);
-        file_exists($pem_path . DIRECTORY_SEPARATOR . 'apiclient_cert.pem') || file_put_contents($pem_path . DIRECTORY_SEPARATOR . 'apiclient_cert.pem', SomeUtils::getRsaKeyValue(array_get($this->config, 'app_cert_pem'), 'public', 'CERT'));
-        file_exists($pem_path . DIRECTORY_SEPARATOR . 'apiclient_key.pem') || file_put_contents($pem_path . DIRECTORY_SEPARATOR . 'apiclient_key.pem', SomeUtils::getRsaKeyValue(array_get($this->config, 'app_key_pem'), 'private', 'CERT'));
+        $cert_path = $pem_path . DIRECTORY_SEPARATOR . 'apiclient_cert.pem';
+        $key_path = $pem_path . DIRECTORY_SEPARATOR . 'apiclient_key.pem';
+        $ca_path = $pem_path . DIRECTORY_SEPARATOR . 'rootca.pem';
+        file_exists($cert_path) || file_put_contents($cert_path, SomeUtils::getRsaKeyValue(array_get($this->config, 'app_cert_pem'), 'public', 'CERT'));
+        file_exists($key_path) || file_put_contents($key_path, SomeUtils::getRsaKeyValue(array_get($this->config, 'app_key_pem'), 'private', 'CERT'));
         $options = [
             'body'        => $xml,
-            'cert'        => $pem_path . DIRECTORY_SEPARATOR . 'apiclient_cert.pem',
-            'ssl_key'     => $pem_path . DIRECTORY_SEPARATOR . 'apiclient_key.pem',
-            'verify'      => false,
+            'cert'        => $cert_path,
+            'ssl_key'     => $key_path,
+            'verify'      => file_exists($ca_path) ? $ca_path : false,
             'http_errors' => false
         ];
         $response = $client->request($method, $reqUrl, $options);
@@ -336,16 +479,16 @@ class WeXinHandler extends PaymentHandlerAbstract
         $bizContent = $this->buildBiz($trade_type);
 
         $signData = [
-            'appid'            => trim(array_get($this->config, 'app_id')),
-            'mch_id'           => trim(array_get($this->config, 'mch_id')),
-            'sign_type'        => array_get($this->config, 'sign_type'), // 签名方式
-            'nonce_str'        => SomeUtils::getNonceStr(), // 设置随机字符串，不长于32位。推荐随机数生成算法
-            'spbill_create_ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1', // 设置APP和网页支付提交用户端ip，Native支付填调用微信支付API的机器IP
+            'appid'     => trim(array_get($this->config, 'app_id')),
+            'mch_id'    => trim(array_get($this->config, 'mch_id')),
+            'sign_type' => array_get($this->config, 'sign_type'), // 签名方式
+            'nonce_str' => SomeUtils::getNonceStr(), // 设置随机字符串，不长于32位。推荐随机数生成算法
         ];
 
         if (in_array($trade_type, self::$pay_type)) {
             $signData['notify_url'] = array_get($this->config, 'notify_url'); // 异步通知的url
             $signData['time_stamp'] = time(); // 支付时间戳
+            $signData['spbill_create_ip'] = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1'; // 设置APP和网页支付提交用户端ip，Native支付填调用微信支付API的机器IP
         }
 
         $signData = array_merge($signData, $bizContent);
@@ -398,13 +541,15 @@ class WeXinHandler extends PaymentHandlerAbstract
         array_key_exists('refund_amount', $order) && $content['refund_fee'] = strval(bcmul(array_get($order, 'refund_amount'), 100, 0));
         // 设置微信退款单号refund_id、out_refund_no、out_trade_no、transaction_id四个参数必填一个，如果同时存在优先级为：refund_id>out_refund_no>transaction_id>out_trade_no
         array_key_exists('refund_id', $order) && $content['refund_id'] = strval(array_get($order, 'refund_id'));
+        // 退款原因
+        array_key_exists('return_reason', $order) && $content['refund_desc'] = strval(array_get($order, 'return_reason'));
         // 设置操作员帐号, 默认为商户号
         array_key_exists('op_user_id', $order) && $content['op_user_id'] = strval(array_get($order, 'op_user_id', array_get($this->config, 'mch_id')));
 
         // 设置下载对账单的日期，格式：yyyyMMdd，如：20140603
         array_key_exists('bill_date', $order) && $content['bill_date'] = strval(array_get($order, 'bill_date'));
         // 设置ALL，返回当日所有订单信息；默认值SUCCESS，返回当日成功支付的订单；REFUND，返回当日退款订单；REVOKED，已撤销的订单
-        array_key_exists('bill_type', $order) && $content['bill_type'] = strval(array_get($order, 'bill_type'));
+        array_key_exists('bill_type', $order) && $content['bill_type'] = strtoupper(array_get($order, 'bill_type'));
 
         // 获取订单详情扩展字符串的值
         array_key_exists('package', $order) && $content['package'] = strval(array_get($order, 'package'));
