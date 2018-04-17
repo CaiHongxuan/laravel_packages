@@ -289,7 +289,7 @@ class AlipayHandler extends PaymentHandlerAbstract
             'biz_content' => json_encode($bizContent, JSON_UNESCAPED_UNICODE),
         ];
         // 电脑支付、wap支付 添加额外参数
-        if (in_array($method_name, ['alipay.trade.page.pay', 'alipay.trade.wap.pay'])) {
+        if (in_array($method_name, [self::API_METHOD_NAME_WEB_PAY, self::API_METHOD_NAME_WAP_PAY])) {
             $signData['return_url'] = array_get($this->config, 'return_url');
         }
         // 移除数组中的空值
