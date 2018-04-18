@@ -89,7 +89,7 @@ return [
             'sign_type'    => 'MD5',
 
             // 如果是H5支付，可以设置该值，返回到指定页面
-            'redirect_url' => 'https://caihongxuan.github.io/',
+            'redirect_url' => '',
 
             // 异步通知地址
             'notify_url'   => "http://外网可访问网关地址/WxpayAPI_php_v3.0.1/example/notify.php",
