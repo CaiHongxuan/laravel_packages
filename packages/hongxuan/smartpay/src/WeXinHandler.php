@@ -490,6 +490,10 @@ class WeXinHandler extends PaymentHandlerAbstract
             $signData['time_stamp'] = time(); // 支付时间戳
             $signData['spbill_create_ip'] = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1'; // 设置APP和网页支付提交用户端ip，Native支付填调用微信支付API的机器IP
         }
+        // 扫码支付、公众号支付 添加额外参数
+        if (in_array($trade_type, [self::TRADE_TYPE_WX_QR, self::TRADE_TYPE_WX_PUB])) {
+            $signData['return_url'] = array_get($this->config, 'return_url');
+        }
 
         $signData = array_merge($signData, $bizContent);
 
